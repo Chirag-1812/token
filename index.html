@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sum Tracker</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f0f4f8;
+      display: flex;
+      justify-content: center;
+      padding: 40px 16px;
+      min-height: 100vh;
+    }
+    .container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      padding: 32px;
+      width: 100%;
+      max-width: 480px;
+      height: fit-content;
+    }
+    h1 { font-size: 1.6rem; color: #1a202c; margin-bottom: 8px; }
+    p.subtitle { color: #718096; font-size: 0.9rem; margin-bottom: 28px; }
+
+    .input-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+    input[type="number"] {
+      flex: 1;
+      padding: 12px 14px;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input[type="number"]:focus { border-color: #4299e1; }
+    button {
+      padding: 12px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-add { background: #4299e1; color: white; }
+    .btn-add:hover { background: #3182ce; }
+    .btn-clear { background: #fed7d7; color: #c53030; }
+    .btn-clear:hover { background: #feb2b2; }
+
+    .total-box {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      border-radius: 10px;
+      padding: 20px 24px;
+      margin-bottom: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .total-label { font-size: 0.85rem; opacity: 0.85; text-transform: uppercase; letter-spacing: 1px; }
+    .total-value { font-size: 2rem; font-weight: 700; }
+
+    .history-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .history-header h2 { font-size: 1rem; color: #4a5568; }
+    .count-badge {
+      background: #ebf8ff;
+      color: #2b6cb0;
+      font-size: 0.78rem;
+      padding: 2px 10px;
+      border-radius: 999px;
+    }
+
+    .history-list {
+      list-style: none;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .history-list li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 12px;
+      border-radius: 8px;
+      margin-bottom: 6px;
+      background: #f7fafc;
+      font-size: 0.92rem;
+      color: #2d3748;
+    }
+    .history-list li:hover { background: #edf2f7; }
+    .entry-value { font-weight: 600; color: #2b6cb0; }
+    .entry-time { font-size: 0.78rem; color: #a0aec0; }
+    .btn-del {
+      background: none;
+      color: #fc8181;
+      padding: 2px 8px;
+      font-size: 1rem;
+      border-radius: 4px;
+    }
+    .btn-del:hover { background: #fff5f5; }
+
+    .empty-msg { text-align: center; color: #a0aec0; padding: 20px 0; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Sum Tracker</h1>
+  <p class="subtitle">Add numbers — they accumulate and your total is saved to the cloud automatically.</p>
+  <div id="setupBanner" style="display:none;background:#fffbeb;border:1px solid #f6e05e;border-radius:8px;padding:14px 16px;margin-bottom:20px;font-size:0.88rem;color:#744210;line-height:1.6">
+    ⚠️ <strong>Setup required:</strong> Open this file and set your <code>BIN_ID</code> and <code>API_KEY</code> at the top of the &lt;script&gt; section.<br>
+    1. Sign up free at <a href="https://jsonbin.io" target="_blank" style="color:#b7791f">jsonbin.io</a><br>
+    2. Create a Bin with content <code>{"entries":[]}</code> → copy the Bin ID<br>
+    3. Go to Account → API Keys → copy your key<br>
+    4. Paste both into the script below.
+  </div>
+  <div id="statusBar" style="display:none;text-align:center;font-size:0.82rem;padding:6px;border-radius:6px;margin-bottom:14px"></div>
+
+  <div class="input-row">
+    <input type="number" id="numInput" placeholder="Enter a number..." step="any" />
+    <button class="btn-add" onclick="addEntry()">Add</button>
+    <button class="btn-clear" onclick="clearAll()">Clear</button>
+  </div>
+
+  <div class="total-box">
+    <div>
+      <div class="total-label">Running Total</div>
+      <div class="total-value" id="totalDisplay">0</div>
+    </div>
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="2">
+      <path d="M12 2v20M2 12h20"/>
+    </svg>
+  </div>
+
+  <div class="history-header">
+    <h2>History</h2>
+    <span class="count-badge" id="countBadge">0 entries</span>
+  </div>
+  <ul class="history-list" id="historyList">
+    <li class="empty-msg" id="emptyMsg">No entries yet. Add a number above.</li>
+  </ul>
+</div>
+
+<script>
+  // ─── CONFIGURE YOUR JSONBIN.IO CREDENTIALS HERE ───────────────────────────
+  const BIN_ID  = 'YOUR_BIN_ID';   // e.g. '64abc123e3a3a45f6a1234ab'
+  const API_KEY = 'YOUR_API_KEY';  // e.g. '$2a$10$abcdefg...'
+  // ──────────────────────────────────────────────────────────────────────────
+
+  const BASE_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+  let cachedData = null;
+
+  function isConfigured() {
+    return BIN_ID !== 'YOUR_BIN_ID' && API_KEY !== 'YOUR_API_KEY';
+  }
+
+  function showStatus(msg, type) {
+    const bar = document.getElementById('statusBar');
+    bar.textContent = msg;
+    bar.style.display = 'block';
+    bar.style.background = type === 'error' ? '#fff5f5' : type === 'ok' ? '#f0fff4' : '#ebf8ff';
+    bar.style.color = type === 'error' ? '#c53030' : type === 'ok' ? '#276749' : '#2b6cb0';
+    if (type !== 'loading') setTimeout(() => bar.style.display = 'none', 2500);
+  }
+
+  async function loadData() {
+    if (cachedData) return cachedData;
+    showStatus('Loading data...', 'loading');
+    const res = await fetch(`${BASE_URL}/latest`, {
+      headers: { 'X-Master-Key': API_KEY }
+    });
+    if (!res.ok) throw new Error('Failed to load data');
+    const json = await res.json();
+    cachedData = json.record;
+    showStatus('Loaded', 'ok');
+    return cachedData;
+  }
+
+  async function saveData(data) {
+    showStatus('Saving...', 'loading');
+    const res = await fetch(BASE_URL, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY },
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) throw new Error('Failed to save data');
+    cachedData = data;
+    showStatus('Saved ✓', 'ok');
+  }
+
+  function getTotal(entries) {
+    return entries.reduce((sum, e) => sum + e.value, 0);
+  }
+
+  function formatNum(n) {
+    return Number.isInteger(n) ? n.toLocaleString() : n.toLocaleString(undefined, { maximumFractionDigits: 4 });
+  }
+
+  function renderEntries(data) {
+    const entries = data.entries;
+    const total = getTotal(entries);
+    document.getElementById('totalDisplay').textContent = formatNum(total);
+    document.getElementById('countBadge').textContent = `${entries.length} entr${entries.length === 1 ? 'y' : 'ies'}`;
+    const list = document.getElementById('historyList');
+    if (entries.length === 0) {
+      list.innerHTML = '<li class="empty-msg">No entries yet. Add a number above.</li>';
+      return;
+    }
+    list.innerHTML = [...entries].reverse().map((e, revIdx) => {
+      const idx = entries.length - 1 - revIdx;
+      const date = new Date(e.timestamp);
+      const timeStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return `
+        <li>
+          <div>
+            <span class="entry-value">${e.value >= 0 ? '+' : ''}${formatNum(e.value)}</span>
+            <div class="entry-time">${timeStr}</div>
+          </div>
+          <button class="btn-del" title="Remove" onclick="removeEntry(${idx})">✕</button>
+        </li>`;
+    }).join('');
+  }
+
+  async function init() {
+    if (!isConfigured()) {
+      document.getElementById('setupBanner').style.display = 'block';
+      renderEntries({ entries: [] });
+      return;
+    }
+    try {
+      const data = await loadData();
+      renderEntries(data);
+    } catch (e) {
+      showStatus('Error loading data. Check your BIN_ID and API_KEY.', 'error');
+      renderEntries({ entries: [] });
+    }
+  }
+
+  async function addEntry() {
+    if (!isConfigured()) { alert('Please configure BIN_ID and API_KEY first.'); return; }
+    const input = document.getElementById('numInput');
+    const val = parseFloat(input.value);
+    if (isNaN(val)) { input.focus(); return; }
+    try {
+      const data = await loadData();
+      data.entries.push({ value: val, timestamp: Date.now() });
+      await saveData(data);
+      input.value = '';
+      input.focus();
+      renderEntries(data);
+    } catch (e) { showStatus('Save failed: ' + e.message, 'error'); }
+  }
+
+  async function removeEntry(idx) {
+    if (!isConfigured()) return;
+    try {
+      const data = await loadData();
+      data.entries.splice(idx, 1);
+      await saveData(data);
+      renderEntries(data);
+    } catch (e) { showStatus('Delete failed: ' + e.message, 'error'); }
+  }
+
+  async function clearAll() {
+    if (!isConfigured()) return;
+    if (!confirm('Clear all entries and reset the total?')) return;
+    try {
+      const data = { entries: [] };
+      await saveData(data);
+      cachedData = data;
+      renderEntries(data);
+    } catch (e) { showStatus('Clear failed: ' + e.message, 'error'); }
+  }
+
+  document.getElementById('numInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addEntry();
+  });
+
+  init();
+</script>
+</body>
+</html>
