@@ -51,8 +51,8 @@
     }
     .btn-add { background: #4299e1; color: white; }
     .btn-add:hover { background: #3182ce; }
-    .btn-clear { background: #fed7d7; color: #c53030; }
-    .btn-clear:hover { background: #feb2b2; }
+    .btn-subtract { background: #f56565; color: white; }
+    .btn-subtract:hover { background: #e53e3e; }
 
     .total-box {
       background: linear-gradient(135deg, #667eea, #764ba2);
@@ -116,7 +116,7 @@
 <body>
 <div class="container">
   <h1>Sum Tracker</h1>
-  <p class="subtitle">Add numbers — they accumulate and your total is saved to the cloud automatically.</p>
+  <!-- <p class="subtitle">Add numbers — they accumulate and your total is saved to the cloud automatically.</p> -->
   <div id="setupBanner" style="display:none;background:#fffbeb;border:1px solid #f6e05e;border-radius:8px;padding:14px 16px;margin-bottom:20px;font-size:0.88rem;color:#744210;line-height:1.6">
     ⚠️ <strong>Setup required:</strong> Open this file and set your <code>BIN_ID</code> and <code>API_KEY</code> at the top of the &lt;script&gt; section.<br>
     1. Sign up free at <a href="https://jsonbin.io" target="_blank" style="color:#b7791f">jsonbin.io</a><br>
@@ -128,8 +128,8 @@
 
   <div class="input-row">
     <input type="number" id="numInput" placeholder="Enter a number..." step="any" />
-    <button class="btn-add" onclick="addEntry()">Add</button>
-    <button class="btn-clear" onclick="clearAll()">Clear</button>
+    <button class="btn-add" onclick="addEntry(true)">Add</button>
+    <button class="btn-subtract" onclick="addEntry(false)">Minus</button>
   </div>
 
   <div class="total-box">
@@ -246,14 +246,14 @@
     }
   }
 
-  async function addEntry() {
+  async function addEntry(isAddition = true) {
     if (!isConfigured()) { alert('Please configure BIN_ID and API_KEY first.'); return; }
     const input = document.getElementById('numInput');
     const val = parseFloat(input.value);
     if (isNaN(val)) { input.focus(); return; }
     try {
       const data = await loadData();
-      data.entries.push({ value: val, timestamp: Date.now() });
+      data.entries.push({ value: isAddition ? val : -val, timestamp: Date.now() });
       await saveData(data);
       input.value = '';
       input.focus();
@@ -261,29 +261,8 @@
     } catch (e) { showStatus('Save failed: ' + e.message, 'error'); }
   }
 
-  async function removeEntry(idx) {
-    if (!isConfigured()) return;
-    try {
-      const data = await loadData();
-      data.entries.splice(idx, 1);
-      await saveData(data);
-      renderEntries(data);
-    } catch (e) { showStatus('Delete failed: ' + e.message, 'error'); }
-  }
-
-  async function clearAll() {
-    if (!isConfigured()) return;
-    if (!confirm('Clear all entries and reset the total?')) return;
-    try {
-      const data = { entries: [] };
-      await saveData(data);
-      cachedData = data;
-      renderEntries(data);
-    } catch (e) { showStatus('Clear failed: ' + e.message, 'error'); }
-  }
-
   document.getElementById('numInput').addEventListener('keydown', e => {
-    if (e.key === 'Enter') addEntry();
+    if (e.key === 'Enter') addEntry(true);
   });
 
   init();
